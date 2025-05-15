@@ -11,50 +11,44 @@ import gc
 from vllm.distributed.parallel_state import destroy_model_parallel
 import argparse
 
-c_to_hrt_prompt = '''当前你是一个资深的信息提取的专家。
-你的任务是从给定文本中，抽取关系三元组。先从给定文本中抽取主客体实体对，并基于主客体实体对从给定实体列表中提取主客体的实体类型。给定的实体类型列表：{entity_list}。
-然后基于主客实体对及其对应的实体类型从给定关系列表中提取可能的关系。给定的关系列表：{relation_list}。
-任务的输出形式是（主体||主体类型||关系类型||客体||客体类型）。
-给定文本：“{text}”
+c_to_hrt_prompt = '''Currently, you are a senior expert in information extraction. 
+Your task is to extract relational triplets from the given text. First, extract the subject-object entity pairs from the given text, and based on these subject-object entity pairs, identify the subject entity types and the object entity types from the given entity type list. The given entity type  list is: {entity_list}.
+Then, based on the subject-object entity pairs and their corresponding entity types, extract the possible relations from the given relation list. The given relation list is: {relation_list}.
+The output format for the task is (subject||subject type||relation||object||object type).
+The given text:"{text}"
 '''
 
-c_to_hr_prompt = '''当前你是一个资深的信息提取的专家。
-你的任务是从给定文本中，先抽取可能存在的主体，并基于主体从给定实体列表中提取可能的主体类型。给定的实体类型列表：{entity_list}。
-任务的输出形式是（主体||主体类型）。
-给定文本：“{text}”
+c_to_hr_prompt = '''Currently, you are a senior expert in information extraction. 
+Your task is to first extract possible subjects from the given text and then identify possible entity types of these subjects from the given entity type list. The given entity type list is: {entity_list}.
+The output format for the task is (subject||entity type).
+The given text:"{text}"
 '''
-c_to_tr_prompt = '''当前你是一个资深的信息提取的专家。
-你的任务是从给定文本中，先抽取可能存在的客体，并基于客体从给定实体列表中提取可能的客体类型。给定的实体类型列表：{entity_list}。
-任务的输出形式是（客体||客体类型）。
-给定文本：“{text}”
-'''
-
-sc_to_tr_prompt = '''当前你是一个资深的信息提取的专家。
-你的任务是从给定文本、主体和主体类型，先抽取可能存在的客体，并基于客体从给定实体列表中提取可能的客体类型。给定的实体类型列表：{entity_list}。
-然后基于主客实体对及其对应的实体类型从给定关系列表中提取可能的关系。给定的关系列表：{relation_list}。
-任务的输出形式是（客体||客体类型||关系类型）。
-给定信息：
-文本：{text}
-主体：{subject}
-主体类型：{subject_type}
+c_to_tr_prompt = '''Currently, you are a senior expert in information extraction. 
+Your task is to first extract possible objects from the given text and then identify possible entity types of these objects from the given entity type list. The given entity type list is: {entity_list}.
+The output format for the task is (object||entity type).
+The given text:"{text}"
 '''
 
-sc_to_hr_prompt = '''当前你是一个资深的信息提取的专家。
-你的任务是从给定文本、客体和客体类型，先抽取可能存在的主体，并基于主体从给定实体列表中提取可能的主体类型。给定的实体类型列表：{entity_list}。
-然后基于主客实体对及其对应的实体类型从给定关系列表中提取可能的关系。给定的关系列表：{relation_list}。
-任务的输出形式是（主体||主体类型||关系类型）。
-给定信息：
-文本：{text}
-客体：{object}
-客体类型：{object_type}”
+sc_to_tr_prompt = '''Currently, you are a senior expert in information extraction. 
+Your task is to first extract possible objects from the given text, the subject, and the subject type, and then identify possible entity types of these objects from the given entity type list. The given entity type list is: {entity_list}.
+Next, based on the subject-object entity pairs and their corresponding entity types, identify possible relations from the given relation list. The given relation list is: {relation_list}.
+The output format for the task is (object||entity type||relation).
+The given text:"{text}; Subject: {subject}; Subject entity type: {subject_type}"
+'''
+
+sc_to_hr_prompt = '''Currently, you are a senior expert in information extraction. 
+Your task is to first extract possible subjects from the given text, the object, and the object type, and then identify possible entity types of these subjects from the given entity type list. The given entity type list is: {entity_list}.
+Next, based on the subject-object entity pairs and their corresponding entity types, identify possible relations from the given relation list. The given relation list is: {relation_list}.
+The output format for the task is (subject||entity type||relation).
+The given text:"{text}; Object: {object}; Object entity type: {object_type}"
 '''
 
 
-with jsonlines.open('xx/ori/CMeIE-V2/CMeIE-V2_dev.jsonl', 'r') as f:
+with jsonlines.open('xx/ori/DrugProt/DrugProt_dev.jsonl', 'r') as f:
     dev_datas = [data for data in f]
-with jsonlines.open('xx/ori/CMeIE-V2/CMeIE-V2_test.jsonl', 'r') as f:
+with jsonlines.open('xx/ori/DrugProt/DrugProt_test.jsonl', 'r') as f:
     test_datas = [data for data in f]
-with open('xx/ori/CMeIE-V2/53_schemas.json','r') as f:
+with open('xx/ori/DrugProt/schemas.json','r') as f:
     trip_types_list = json.load(f)
 
 trip_types = sorted(set([data['predicate'] for data in trip_types_list]))
@@ -150,7 +144,7 @@ def main():
     ori_task = ['c_to_hrt', 'c_to_hr', 'c_to_tr']
     for data_type, use_datas in zip(data_type_list, use_datas_list):
         for prompt_name, prompt_format in overall_prompt_list:
-            out_name = '{}_{}_CMeIE.jsonl'.format(prompt_name, data_type)
+            out_name = '{}_{}_DrugProt.jsonl'.format(prompt_name, data_type)
             prompt_list = []
             text_list = []
 
@@ -165,7 +159,7 @@ def main():
                     )
                     prompt_list.append(prompt)
             elif prompt_name == 'sc_to_tr':
-                read_file = os.path.join(now_out_dir, '{}_{}_CMeIE.jsonl'.format('c_to_hr', data_type))
+                read_file = os.path.join(now_out_dir, '{}_{}_DrugProt.jsonl'.format('c_to_hr', data_type))
                 with jsonlines.open(read_file, 'r') as f:
                     read_datas = [data for data in f]
                 index_list = []
@@ -186,7 +180,7 @@ def main():
                         hr_list.append(hr)
 
             elif prompt_name == 'sc_to_hr':
-                read_file = os.path.join(now_out_dir, '{}_{}_CMeIE.jsonl'.format('c_to_tr', data_type))
+                read_file = os.path.join(now_out_dir, '{}_{}_DrugProt.jsonl'.format('c_to_tr', data_type))
                 with jsonlines.open(read_file, 'r') as f:
                     read_datas = [data for data in f]
                 index_list = []
@@ -219,7 +213,7 @@ def main():
                     })
             elif prompt_name == 'c_to_hr':
                 out_datas = []
-                pattern = r'（([^|]+?)\|\|([^|]+?)）\s*\n'
+                pattern = r'\(([^|]+?)\|\|([^|]+?)\)\s*\n'
                 for text, prompt, pred in zip(text_list, prompt_list, res_list):
                     finds = re.findall(pattern, pred)
                     hr_list = []
@@ -236,7 +230,7 @@ def main():
                     })
             elif prompt_name == 'c_to_tr':
                 out_datas = []
-                pattern = r'（([^|]+?)\|\|([^|]+?)）\s*\n'
+                pattern = r'\(([^|]+?)\|\|([^|]+?)\)\s*\n'
                 for text, prompt, pred in zip(text_list, prompt_list, res_list):
                     finds = re.findall(pattern, pred)
                     tr_list = []
@@ -253,7 +247,7 @@ def main():
                     })
             elif prompt_name == 'sc_to_tr':
                 out_datas = []
-                pattern = r'（([^|]+?)\|\|([^|]+?)\|\|([^|]+?)）\s*\n'
+                pattern = r'\(([^|]+?)\|\|([^|]+?)\|\|([^|]+?)\)\s*\n'
                 for text, prompt, pred, hr, index  in zip(text_list, prompt_list, res_list, hr_list, index_list):
                     finds = re.findall(pattern, pred)
                     tr_list = []
@@ -274,7 +268,7 @@ def main():
                 pass
             elif prompt_name == 'sc_to_hr':
                 out_datas = []
-                pattern = r'（([^|]+?)\|\|([^|]+?)\|\|([^|]+?)）\s*\n'
+                pattern = r'\(([^|]+?)\|\|([^|]+?)\|\|([^|]+?)\)\s*\n'
                 for text, prompt, pred, tr, index  in zip(text_list, prompt_list, res_list, tr_list, index_list):
                     finds = re.findall(pattern, pred)
                     hr_list = []
